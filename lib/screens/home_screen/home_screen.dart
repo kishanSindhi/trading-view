@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:trading_view/app_constants.dart';
 import 'package:trading_view/screens/home_screen/bloc/home_market_bloc.dart';
 import 'package:trading_view/services/binance_data_service.dart';
 import 'package:trading_view/services/dio_service.dart';
@@ -17,8 +18,26 @@ class HomePage extends StatelessWidget {
       )..add(GetInitialData()),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Trading View (Crypto)'),
-          centerTitle: true,
+          title: const Text(
+            'Watchlist',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          actions: [_CreateChecklistButton(), SizedBox(width: 16)],
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(kToolbarHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+              child: Row(
+                spacing: 4,
+                children: [_SearchTextfield(), _FilterButton()],
+              ),
+            ),
+          ),
         ),
         body: BlocBuilder<HomeMarketBloc, HomeMarketState>(
           builder: (context, state) {
@@ -29,7 +48,9 @@ class HomePage extends StatelessWidget {
               return Center(child: Text(state.error));
             }
             if (state is HomeMarketLoaded) {
-              return ListView.builder(
+              return ListView.separated(
+                separatorBuilder: (context, index) =>
+                    Divider(height: 1, color: AppColors.border),
                 itemCount: state.stocks.length,
                 itemBuilder: (context, index) {
                   final ticker = state.stocks[index];
@@ -47,5 +68,65 @@ class HomePage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _CreateChecklistButton extends StatelessWidget {
+  const _CreateChecklistButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {},
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.textPrimary,
+          borderRadius: BorderRadius.circular(16),
+          shape: BoxShape.rectangle,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Icon(Icons.create_new_folder, color: AppColors.surface),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchTextfield extends StatelessWidget {
+  const _SearchTextfield({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: SizedBox(
+        height: 40,
+        child: TextField(
+          onTapOutside: (event) {
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
+          decoration: InputDecoration(
+            hintText: 'Search',
+            prefixIcon: Icon(Icons.search),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            filled: true,
+            fillColor: AppColors.border,
+            contentPadding: EdgeInsets.symmetric(vertical: 5),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterButton extends StatelessWidget {
+  const _FilterButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(onPressed: () {}, icon: Icon(Icons.filter_list));
   }
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:trading_view/app_constants.dart';
 import 'package:trading_view/models/stock.dart';
 import 'package:trading_view/screens/crypto_detail_screen/bloc/crypto_detail_bloc.dart';
 import 'package:trading_view/services/dio_service.dart';
 import 'package:trading_view/widgets/crypto_line_chart.dart';
+import 'package:trading_view/widgets/info_chip.dart';
 
 class CryptoDetailScreen extends StatelessWidget {
   const CryptoDetailScreen({super.key, required this.currency});
@@ -29,18 +31,69 @@ class CryptoDetailScreen extends StatelessWidget {
               return Center(child: Text(state.error));
             }
             if (state is CryptoDetailLoaded) {
-              return SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: 16),
+              return DefaultTabController(
+                length: 2,
                 child: Column(
                   children: [
                     if (state.hasChart) ...[
-                      _ChartSection(state: state),
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _ChartSection(state: state),
+                      ),
                       const SizedBox(height: 28),
                     ],
-                    if (state.stock.quote != null) ...[
-                      _StockDetailsSection(quote: state.stock.quote!),
-                    ],
-                    _CompanyInfoSection(profile: state.stock.profile),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.3),
+                        ),
+                      ),
+                      child: const TabBar(
+                        tabs: [
+                          Tab(text: "Overview"),
+                          Tab(text: "Coin Info"),
+                        ],
+                        tabAlignment: TabAlignment.start,
+                        isScrollable: true,
+                        indicatorColor: AppColors.primary,
+                        labelColor: AppColors.primary,
+                        unselectedLabelColor: AppColors.textSecondary,
+                        dividerColor: Colors.transparent,
+                        indicator: BoxDecoration(color: Colors.transparent),
+                        labelStyle: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        unselectedLabelStyle: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          if (state.stock.quote != null)
+                            SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: _StockDetailsSection(
+                                quote: state.stock.quote!,
+                              ),
+                            )
+                          else
+                            const SizedBox.shrink(),
+                          SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _CompanyInfoSection(
+                              profile: state.stock.profile,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -64,14 +117,7 @@ class _ChartSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Text(
-              '24H Price',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            _PriceText(amount: state.stock.currentPrice),
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -90,15 +136,17 @@ class _ChartSection extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
+        InfoChip(info: state.stock.profile.currency ?? "USD"),
+        const SizedBox(height: 6),
         Container(
           height: 200,
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
           decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
           child: CryptoLineChart(
             spots: state.chartSpots,
-            minY: state.chartMin,
-            maxY: state.chartMax,
+            minY: state.chartMin ?? 0,
+            maxY: state.chartMax ?? 1,
             isPositive: state.stock.isPositive,
           ),
         ),
@@ -116,17 +164,9 @@ class _StockDetailsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Overview',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
         Column(
           children: [
+            SizedBox(height: 6),
             _StatRow(label: 'Open', value: quote.open),
             _StatRow(
               label: 'High',
@@ -154,31 +194,37 @@ class _StatRow extends StatelessWidget {
   final bool highlight;
   final bool positive;
 
-  const _StatRow({
+  _StatRow({
     required this.label,
     required this.value,
     this.highlight = false,
     this.positive = true,
   });
 
+  final formatCurrency = NumberFormat.simpleCurrency();
+
   @override
   Widget build(BuildContext context) {
     final color = highlight ? AppColors.primary : AppColors.textPrimary;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           Text(
-            '\$${value.toStringAsFixed(2)}',
+            formatCurrency.format(value),
             style: TextStyle(
               color: color,
-              fontSize: 16,
+              fontSize: 20,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -208,22 +254,7 @@ class _CompanyInfoSection extends StatelessWidget {
 
     if (rows.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 12),
-        const Text(
-          'Coin Info',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Column(children: rows),
-      ],
-    );
+    return Column(children: [SizedBox(height: 6), ...rows]);
   }
 }
 
@@ -243,20 +274,77 @@ class _InfoRow extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 16,
+              color: AppColors.textPrimary,
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
             ),
           ),
           Text(
             value,
             style: const TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PriceText extends StatelessWidget {
+  final double amount;
+
+  _PriceText({super.key, required this.amount});
+  final formatCurrency = NumberFormat.simpleCurrency();
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = formatCurrency.format(amount).split('.');
+    final intAmount = parts[0].replaceAll('\$', '');
+    final decimal = parts[1];
+    final textColor = AppColors.textPrimary;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            '\$ ',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: textColor.withOpacity(0.5),
+            ),
+          ),
+        ),
+
+        Text(
+          intAmount,
+          style: TextStyle(
+            fontSize: 64,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+            height: 1,
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: Text(
+            '.$decimal',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w400,
+              color: textColor.withOpacity(0.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
